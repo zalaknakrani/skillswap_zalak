@@ -1,0 +1,107 @@
+
+#userFilterPanel {
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: rgba(7,12,25,.38);
+}
+
+#userFilterPanel > div {
+    min-width: min(200px, 100%) !important;
+}
+
+#userFilterPanel label {
+    display: block;
+    margin-bottom: 8px;
+    color: #ded8f6;
+    font-weight: 600;
+}
+
+#userFilterPanel input {
+    width: 100% !important;
+    min-height: 45px;
+    padding: 11px 13px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    background: var(--field) !important;
+    color: var(--text) !important;
+}
+
+#users > button {
+    margin: 5px 8px 8px 0;
+}
+
+#users #userList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+    gap: 15px;
+}
+
+#userList > * {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: linear-gradient(145deg, rgba(21,29,51,.9), rgba(12,18,34,.9));
+    overflow-wrap: anywhere;
+    transition: border-color .2s, transform .2s;
+}
+
+#userList > *:hover {
+    transform: translateY(-2px);
+    border-color: rgba(167,139,250,.45);
+}
+
+#userList h3,
+#userList h4 {
+    margin-top: 0;
+}
+
+#userList p {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+@media (max-width: 520px) {
+    #userFilterPanel {
+        padding: 13px;
+    }
+
+    #users > button {
+        margin-right: 5px;
+        margin-bottom: 8px;
+    }
+}
+
+
+/* Users page - light theme */
+body.light-mode #users,
+body.light-mode #userFilterPanel {
+    background: #ffffff !important;
+    color: #272343 !important;
+}
+
+body.light-mode #userFilterPanel label {
+    color: #514a70 !important;
+}
+
+body.light-mode #userFilterPanel input,
+body.light-mode #userFilterPanel select {
+    background: #ffffff !important;
+    color: #272343 !important;
+    border-color: #d8d2eb !important;
+}
+
+body.light-mode #userList > *,
+body.light-mode #userList .user-card {
+    background: #f8f7ff !important;
+    color: #272343 !important;
+    border: 1px solid #ded8f3 !important;
+}
+
+body.light-mode #userList p,
+body.light-mode #userList span,
+body.light-mode #userList strong,
+body.light-mode #userList div {
+    color: #272343;
+}

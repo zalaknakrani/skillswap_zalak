@@ -1,0 +1,128 @@
+
+<section id="session" class="section">
+
+    <div class="section-heading">
+
+        <p class="section-kicker">
+            PRACTICE IN REAL TIME
+        </p>
+
+        <h2>Teaching Session ⏱</h2>
+
+        <p class="muted">
+            Start an audio or video session with a learning partner.
+        </p>
+
+    </div>
+
+    <!-- SESSION TIME AND COINS -->
+    <div class="session-stats">
+
+        <div class="stat-card">
+
+            <span class="stat-label">
+                Session time
+            </span>
+
+            <strong id="timerText">
+                Session: 0 sec
+            </strong>
+
+        </div>
+
+        <div class="stat-card">
+
+            <span class="stat-label">
+                Your balance
+            </span>
+
+            <strong id="coinDisplay">
+                Coins: 0
+            </strong>
+
+        </div>
+
+    </div>
+
+    <div class="panel">
+
+        <!-- VIDEO -->
+        <div
+            id="videoContainer"
+            class="video-container"
+            style="display:none;">
+
+            <video
+                id="localVideo"
+                autoplay
+                playsinline>
+
+            </video>
+
+            <p
+                id="videoStatus"
+                class="muted">
+
+            </p>
+
+        </div>
+
+        <!-- AUDIO -->
+        <audio
+            id="localAudio"
+            autoplay
+            style="display:none;">
+
+        </audio>
+
+        <!-- SESSION BUTTONS -->
+        <div class="session-actions">
+
+            <button
+                type="button"
+                class="primary-button"
+                onclick="showSessionRequestPopup('video')">
+
+                Start Teaching (with Video)
+
+            </button>
+
+            <button
+                type="button"
+                onclick="showSessionRequestPopup('audio')">
+
+                Start Teaching (Audio Only)
+
+            </button>
+
+            <button
+                type="button"
+                class="danger-button"
+                onclick="endCurrentSession()">
+
+                Stop Session
+
+            </button>
+
+        </div>
+
+        <!-- AUDIO STATUS -->
+        <p
+            id="audioStatus"
+            class="status-text">
+
+            Audio session inactive.
+
+        </p>
+
+        <!-- AUDIO METER -->
+        <canvas
+            id="audioMeter"
+            width="400"
+            height="60">
+
+        </canvas>
+
+    </div>
+
+</section>

@@ -166,6 +166,42 @@ let socketReady = false;
 let pendingLoginEmail = null;
 let unreadMessages = JSON.parse(localStorage.getItem("unreadMessages")) || {};
 
+
+async function loadUnreadCounts() {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    try {
+        const response = await fetch("/api/auth/unread-counts", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("Unread counts error:", data.msg);
+            return;
+        }
+
+        // Load unread counts from MySQL
+        unreadMessages = data.unreadCounts || {};
+
+        // Update navbar unread badge
+        updateChatNavBadge();
+
+        // Update chat partner badges without hiding the active chat
+        document.querySelectorAll("#chatPartnerList button").forEach(btn => {
+            const email = btn.textContent.trim().split(" — ")[0];
+            updateChatPartnerBadge(email, unreadMessages[email] || 0);
+        });
+
+    } catch (error) {
+        console.error("Load unread counts error:", error);
+    }
+}
+
 function initSocket() {
     if (socketReady) return;
     if (!window.io) return;
@@ -248,40 +284,48 @@ function updateChatNavBadge() {
 }
 
 // Handle incoming messages
-function handleIncomingMessage(data) {
-    if(!currentUser) return;
-    
-    const chatId = getChatId(currentUser.email, data.from);
-    const chats = JSON.parse(localStorage.getItem("chats")) || {};
-    chats[chatId] = chats[chatId] || [];
-    
-    chats[chatId].push({
-        from: data.from,
-        to: currentUser.email,
-        text: data.text,
-        time: data.time
-    });
-    
-    localStorage.setItem("chats", JSON.stringify(chats));
-    
-    // Track unread messages (like WhatsApp)
-    unreadMessages[data.from] = (unreadMessages[data.from] || 0) + 1;
-    localStorage.setItem("unreadMessages", JSON.stringify(unreadMessages));
-    
-    // Update navbar badge
-    updateChatNavBadge();
-    
-    // Refresh chat if open
-    if(chatPartnerEmail === data.from) {
-        renderChat();
-    } else {
-        // Update UI indication with unread count
-        updateChatPartnerBadge(data.from, unreadMessages[data.from]);
+
+
+async function handleIncomingMessage(data) {
+    if (!currentUser || !data) return;
+    if (data.to !== currentUser.email) return;
+    if (data.from === currentUser.email) return;
+
+    const token = localStorage.getItem("authToken");
+
+    try {
+        // If this conversation is open, mark the new message as read
+        if (chatPartnerEmail === data.from) {
+            const response = await fetch(
+                `/api/auth/messages/${encodeURIComponent(data.from)}/read`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                console.error("Failed to mark message as read");
+            }
+
+            // Refresh the open conversation
+            await renderChat();
+        }
+
+        // Always get unread counts from MySQL
+        await loadUnreadCounts();
+
+        // Play notification sound for the incoming message
+        playNotificationSound();
+
+    } catch (error) {
+        console.error("Incoming message error:", error);
     }
-    
-    // Play notification sound
-    playNotificationSound();
 }
+
+
 
 // Play WhatsApp-like notification sound
 function playNotificationSound() {
@@ -537,69 +581,89 @@ if (currentUser && window.location.pathname.includes("dashboard.html")) {
 }
 
 // ---------------- REGISTER ----------------
-function register(){
-    let email = document.getElementById("email").value.trim().toLowerCase();
-    let pass = document.getElementById("password").value.trim();
 
-    if(!email || !pass){
-        alert("Enter email & password");
+async function register() {
+    const email = document.getElementById('email')
+        .value.trim().toLowerCase();
+
+    const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+        alert('Enter email and password.');
         return;
     }
 
-    let users = JSON.parse(localStorage.getItem("users")) || [];
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
 
-    let exists = users.find(u => u.email.toLowerCase() === email);
-    if(exists){
-        alert("Email id already exists. Please login instead.");
-        return;
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || 'Registration failed.');
+            return;
+        }
+
+        alert('Registered successfully! Please log in.');
+    } catch (error) {
+        console.error('Registration error:', error);
+        alert('Cannot connect to the server. Check that it is running.');
     }
-
-    users.push({
-    email: email,
-    password: pass,
-    skills: [],
-    learn: [],
-    coins: 0,
-    name: "",
-    contact: "",
-    country: "",
-    state: "",
-    degree: "",
-    city: ""
-});
-
-    localStorage.setItem("users", JSON.stringify(users));
-
-    alert("Registered Successfully ✅");
 }
 
 // ---------------- LOGIN ----------------
 
-function login(){
-    let email = document.getElementById("email").value.trim().toLowerCase();
-    let pass = document.getElementById("password").value.trim();
 
-    let users = JSON.parse(localStorage.getItem("users")) || [];
+async function login() {
+    const email = document.getElementById('email')
+        .value.trim().toLowerCase();
 
-    let user = users.find(u => u.email.toLowerCase() === email && u.password === pass);
+    const password = document.getElementById('password').value;
 
-    if(!user){
-        alert("Invalid credentials ❌");
+    if (!email || !password) {
+        alert('Enter email and password.');
         return;
     }
 
-    localStorage.setItem("currentUser", JSON.stringify(user));
-    
-    // Notify server that user logged in via Socket.io
-    if (socketReady) {
-        socket.emit('user_login', email);
-    } else {
-        pendingLoginEmail = email;
-    }
+    try {
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email, password })
+        });
 
-    alert("Login Success 🎉");
-    window.location.href = "dashboard.html";
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || 'Login failed.');
+            return;
+        }
+
+        currentUser = data.user;
+
+        localStorage.setItem(
+            'currentUser',
+            JSON.stringify(currentUser)
+        );
+
+        localStorage.setItem('authToken', data.token);
+
+        alert('Login successful!');
+        window.location.href = 'dashboard.html';
+
+    } catch (error) {
+        console.error('Login error:', error);
+        alert('Cannot connect to the server. Check that it is running.');
+    }
 }
+
 
 function toggleForgotPassword(show){
     const section = document.getElementById("forgotPasswordSection");
@@ -644,169 +708,343 @@ function resetPassword(){
 }
 
 // ---------- LOGOUT ----------
-function logout(){
-    // Clear unread messages
-    unreadMessages = {};
-    localStorage.removeItem("unreadMessages");
-    
-    if(socket) {
-        socket.disconnect();
-    }
+
+function logout() {
+    // Remove saved login information
     localStorage.removeItem("currentUser");
-    window.location.href = "login.html";
+    localStorage.removeItem("authToken");
+
+    // Redirect to the Express login route
+    window.location.href = "/login";
 }
+
 
 
 // ---------------- SAVE SKILL ----------------
-function saveSkill(){
-    let skill = document.getElementById("skill").value.trim().toUpperCase();
-    let learn = document.getElementById("learn").value.trim().toUpperCase();
 
-    if(!skill || !learn){
-        alert("Enter both fields");
+
+
+async function saveSkill() {
+    if (!currentUser || !currentUser.email) {
+        alert("Your login session is missing. Please log in again.");
+        window.location.href = "/login";
         return;
     }
 
-    let users = JSON.parse(localStorage.getItem("users")) || [];
+    const skillInput = document.getElementById("skill");
+    const learnInput = document.getElementById("learn");
 
-    users = users.map(u => {
-        if(u.email === currentUser.email){
+    const skill = skillInput.value.trim().toUpperCase();
+    const learn = learnInput.value.trim().toUpperCase();
 
-            u.skills = u.skills || [];
-            u.learn = u.learn || [];
+    if (!skill && !learn) {
+        alert("Enter a skill you offer or a skill you want to learn.");
+        return;
+    }
 
-            if(!u.skills.includes(skill)){
-                u.skills.push(skill);
-            }
+    const token = localStorage.getItem("authToken");
 
-            if(!u.learn.includes(learn)){
-                u.learn.push(learn);
-            }
+    if (!token) {
+        alert("Your login session has expired. Please log in again.");
+        window.location.href = "/login";
+        return;
+    }
 
-            currentUser = u;
+    try {
+        const response = await fetch("/api/auth/skills", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                skill: skill,
+                learn: learn
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || "Unable to save skills.");
+            return;
         }
-        return u;
-    });
 
-    localStorage.setItem("users", JSON.stringify(users));
-    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+        // Update the local display data only after MySQL saves successfully.
+        if (!Array.isArray(currentUser.skills)) {
+            currentUser.skills = [];
+        }
 
-    alert("Skill Saved ✅");
+        if (!Array.isArray(currentUser.learn)) {
+            currentUser.learn = [];
+        }
 
-    loadDropdowns(); // 👈 update dropdown after saving
+        if (skill && !currentUser.skills.includes(skill)) {
+            currentUser.skills.push(skill);
+        }
+
+        if (learn && !currentUser.learn.includes(learn)) {
+            currentUser.learn.push(learn);
+        }
+
+        localStorage.setItem(
+            "currentUser",
+            JSON.stringify(currentUser)
+        );
+
+        // Keep the existing display functions.
+        displayMySkills();
+        displayMyLearn();
+
+        skillInput.value = "";
+        learnInput.value = "";
+
+        alert("Skills saved successfully!");
+
+    } catch (error) {
+        console.error("Save skills error:", error);
+        alert("Unable to connect to the server. Please try again.");
+    }
 }
+
+
 // ---------------- MATCHING ----------------
-function findMatches(){
+
+async function findMatches() {
     let matchList = document.getElementById("matchList");
-    let users = JSON.parse(localStorage.getItem("users")) || [];
 
-    matchList.innerHTML = "";
-    let found = false;
+    matchList.innerHTML = "Loading matches...";
 
-    if(!currentUser || !currentUser.email){
+    if (!currentUser || !currentUser.email) {
         matchList.innerHTML = "No matches found ❌";
         return;
     }
 
-    let user = users.find(u => u.email === currentUser.email);
-    if(!user || !Array.isArray(user.skills) || !Array.isArray(user.learn) || !user.skills.length || !user.learn.length){
-        matchList.innerHTML = "No matches found ❌";
-        return;
-    }
+    try {
+        // Get users and their skills from MySQL
+        const response = await fetch("/api/auth/users", {
+            headers: {
+                "Authorization": "Bearer " + localStorage.getItem("authToken")
+            }
+        });
 
-    const exactMatches = [];
-    const partialMatches = [];
+        const data = await response.json();
 
-    const userSkills = (user.skills || []).map(s => String(s).toLowerCase());
-    const userLearn = (user.learn || []).map(s => String(s).toLowerCase());
-
-    users.forEach(other => {
-        if(other.email === user.email) return;
-
-        const otherSkills = (other.skills || []).map(s => String(s).toLowerCase());
-        const otherLearn = (other.learn || []).map(s => String(s).toLowerCase());
-
-        const isExact = otherSkills.length && otherLearn.length &&
-            arraysEqualAsSets(otherSkills, userLearn) &&
-            arraysEqualAsSets(otherLearn, userSkills);
-
-        const matchedOffers = otherSkills.filter(s => userLearn.includes(s));
-        const matchedWants = otherLearn.filter(s => userSkills.includes(s));
-        const isPartial = !isExact && (matchedOffers.length || matchedWants.length);
-
-        if(isExact){
-            exactMatches.push(other);
-        } else if(isPartial){
-            partialMatches.push({ other, matchedOffers, matchedWants });
+        if (!response.ok) {
+            matchList.innerHTML = data.msg || "Unable to load matches.";
+            return;
         }
-    });
 
-    if(exactMatches.length > 0){
-        matchList.innerHTML += `<h3>Exact Matches</h3>`;
-        exactMatches.forEach(other => {
-            matchList.innerHTML += `
-    <div style="border:1px solid #ccc; padding:10px; margin:5px;">
-        <p>🤝 ${user.email} ↔ ${other.email}</p>
+        let users = data.users || [];
 
-        <div style="margin:10px 0; text-align:left;">
-            <p><b>Offers:</b> ${formatSkillList(other.skills)}</p>
-            <p><b>Wants:</b> ${formatSkillList(other.learn)}</p>
-        </div>
+        matchList.innerHTML = "";
 
-        <button onclick="viewProfile('${other.email}')">
-            View ${other.email} Profile
-        </button>
-    </div>
-`;
+        // Find the logged-in user
+        let user = users.find(
+            u => u.email === currentUser.email
+        );
+
+        if (
+            !user ||
+            !Array.isArray(user.skills) ||
+            !Array.isArray(user.learn) ||
+            !user.skills.length ||
+            !user.learn.length
+        ) {
+            matchList.innerHTML = "No matches found ❌";
+            return;
+        }
+
+        const exactMatches = [];
+        const partialMatches = [];
+
+        const userSkills = user.skills.map(
+            s => String(s).toLowerCase()
+        );
+
+        const userLearn = user.learn.map(
+            s => String(s).toLowerCase()
+        );
+
+        users.forEach(other => {
+            if (other.email === user.email) return;
+
+            const otherSkills = (other.skills || []).map(
+                s => String(s).toLowerCase()
+            );
+
+            const otherLearn = (other.learn || []).map(
+                s => String(s).toLowerCase()
+            );
+
+            const isExact =
+                otherSkills.length &&
+                otherLearn.length &&
+                arraysEqualAsSets(otherSkills, userLearn) &&
+                arraysEqualAsSets(otherLearn, userSkills);
+
+            const matchedOffers = otherSkills.filter(
+                s => userLearn.includes(s)
+            );
+
+            const matchedWants = otherLearn.filter(
+                s => userSkills.includes(s)
+            );
+
+            const isPartial =
+                !isExact &&
+                (matchedOffers.length || matchedWants.length);
+
+            if (isExact) {
+                exactMatches.push(other);
+            } else if (isPartial) {
+                partialMatches.push({
+                    other,
+                    matchedOffers,
+                    matchedWants
+                });
+            }
         });
-    }
 
-    if(partialMatches.length > 0){
-        matchList.innerHTML += `<h3>Users with another skill match</h3>`;
-        partialMatches.forEach(item => {
-            const other = item.other;
-            const offerText = item.matchedOffers.length ? `Offers matched: ${item.matchedOffers.join(", ")}` : "";
-            const wantText = item.matchedWants.length ? `Wants matched: ${item.matchedWants.join(", ")}` : "";
+        // Display exact matches
+        if (exactMatches.length > 0) {
+            matchList.innerHTML += `<h3>Exact Matches</h3>`;
+
+            exactMatches.forEach(other => {
+                matchList.innerHTML += `
+                    <div style="border:1px solid #ccc; padding:10px; margin:5px;">
+                        <p>🤝 ${user.email} ↔ ${other.email}</p>
+
+                        <div style="margin:10px 0; text-align:left;">
+                            <p><b>Offers:</b> ${formatSkillList(other.skills)}</p>
+                            <p><b>Wants:</b> ${formatSkillList(other.learn)}</p>
+                        </div>
+
+                        <button onclick="viewProfile('${other.email}')">
+                            View ${other.email} Profile
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        // Display partial matches
+        if (partialMatches.length > 0) {
             matchList.innerHTML += `
-    <div style="border:1px solid #999; padding:10px; margin:5px; background:#111; border-radius:10px;">
-        <p>🔁 ${user.email} ↔ ${other.email}</p>
-        <div style="margin:10px 0; text-align:left; color:#d1d5db;">
-            <p><b>Offers:</b> ${formatSkillList(other.skills)}</p>
-            <p><b>Wants:</b> ${formatSkillList(other.learn)}</p>
-            <p style="margin-top:8px; color:#a5f3fc;">${offerText} ${offerText && wantText ? ' | ' : ''}${wantText}</p>
-        </div>
-        <button onclick="viewProfile('${other.email}')">
-            View ${other.email} Profile
-        </button>
-    </div>
-`;
-        });
-    }
+                <h3>Users with another skill match</h3>
+            `;
 
-    if(exactMatches.length === 0 && partialMatches.length === 0){
-        matchList.innerHTML = "No matches found ❌";
+            partialMatches.forEach(item => {
+                const other = item.other;
+
+                const offerText = item.matchedOffers.length
+                    ? `Offers matched: ${item.matchedOffers.join(", ")}`
+                    : "";
+
+                const wantText = item.matchedWants.length
+                    ? `Wants matched: ${item.matchedWants.join(", ")}`
+                    : "";
+
+                matchList.innerHTML += `
+                    <div style="border:1px solid #999; padding:10px; margin:5px; background:#111; border-radius:10px;">
+                        <p>🔁 ${user.email} ↔ ${other.email}</p>
+
+                        <div style="margin:10px 0; text-align:left; color:#d1d5db;">
+                            <p><b>Offers:</b> ${formatSkillList(other.skills)}</p>
+                            <p><b>Wants:</b> ${formatSkillList(other.learn)}</p>
+
+                            <p style="margin-top:8px; color:#a5f3fc;">
+                                ${offerText}${offerText && wantText ? " | " : ""}${wantText}
+                            </p>
+                        </div>
+
+                        <button onclick="viewProfile('${other.email}')">
+                            View ${other.email} Profile
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        if (
+            exactMatches.length === 0 &&
+            partialMatches.length === 0
+        ) {
+            matchList.innerHTML = "No matches found ❌";
+        }
+
+    } catch (error) {
+        console.error("Find matches error:", error);
+        matchList.innerHTML = "Unable to load matches. Please try again.";
     }
 }
 
-function getMatchesForUser(user){
-    if(!user || !Array.isArray(user.skills) || !Array.isArray(user.learn)) return [];
 
-    const userSkills = user.skills.map(s => String(s).toLowerCase());
-    const userLearn = user.learn.map(s => String(s).toLowerCase());
-    let users = JSON.parse(localStorage.getItem("users")) || [];
 
-    return users.filter(other => {
-        if(other.email === user.email) return false;
-        if(!Array.isArray(other.skills) || !Array.isArray(other.learn)) return false;
+async function getMatchesForUser(user) {
+    if (!user || !Array.isArray(user.skills) || !Array.isArray(user.learn)) {
+        return [];
+    }
 
-        const otherSkills = other.skills.map(s => String(s).toLowerCase());
-        const otherLearn = other.learn.map(s => String(s).toLowerCase());
+    const token = localStorage.getItem("authToken");
 
-        return otherSkills.length && otherLearn.length &&
-            arraysEqualAsSets(otherSkills, userLearn) &&
-            arraysEqualAsSets(otherLearn, userSkills);
-    });
+    if (!token) return [];
+
+    try {
+        // Fetch users from MySQL
+        const response = await fetch("/api/auth/users", {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("Load matched users error:", data.msg);
+            return [];
+        }
+
+        let users = data.users || [];
+
+        const userSkills = user.skills.map(
+            s => String(s).toLowerCase()
+        );
+
+        const userLearn = user.learn.map(
+            s => String(s).toLowerCase()
+        );
+
+        return users.filter(other => {
+            if (other.email === user.email) return false;
+
+            if (
+                !Array.isArray(other.skills) ||
+                !Array.isArray(other.learn)
+            ) {
+                return false;
+            }
+
+            const otherSkills = other.skills.map(
+                s => String(s).toLowerCase()
+            );
+
+            const otherLearn = other.learn.map(
+                s => String(s).toLowerCase()
+            );
+
+            return otherSkills.length > 0 &&
+                otherLearn.length > 0 &&
+                arraysEqualAsSets(otherSkills, userLearn) &&
+                arraysEqualAsSets(otherLearn, userSkills);
+        });
+
+    } catch (error) {
+        console.error("Get matched users error:", error);
+        return [];
+    }
 }
+
 
 function arraysEqualAsSets(a, b){
     const setA = [...new Set(a.map(x => String(x).trim()))].sort();
@@ -819,9 +1057,9 @@ function getChatId(email1, email2){
     return [email1, email2].sort().join("__");
 }
 
-function loadChatMatches(){
+async function loadChatMatches(){
     let list = document.getElementById("chatPartnerList");
-    let partners = getMatchesForUser(currentUser);
+    let partners = await getMatchesForUser(currentUser);
     let chatArea = document.getElementById("chatArea");
     chatArea.style.display = "none";
 
@@ -850,88 +1088,197 @@ function loadChatMatches(){
 
 let chatPartnerEmail = null;
 
-function selectChatPartner(email){
+
+async function selectChatPartner(email) {
     chatPartnerEmail = email;
+
     document.getElementById("chatArea").style.display = "block";
     document.getElementById("chatTitle").innerText = `Chat with ${email}`;
-    clearUnreadMessages(email);  // Mark as read when opening chat
-    renderChat();
+
+    
+
+    try {
+        // Mark messages from this person as read in MySQL
+        const response = await fetch(
+            `/api/auth/messages/${encodeURIComponent(email)}/read`,
+            {
+                method: "PUT",
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("Mark messages as read error:", data.msg);
+            return;
+        }
+
+        // Refresh unread counts from MySQL
+        await loadUnreadCounts();
+
+        // Display chat messages
+        await renderChat();
+
+    } catch (error) {
+        console.error("Select chat partner error:", error);
+    }
 }
 
-function renderChat(){
+
+
+async function renderChat() {
     let box = document.getElementById("chatBox");
-    if(!chatPartnerEmail || !currentUser) return;
 
-    let chatId = getChatId(currentUser.email, chatPartnerEmail);
-    let chats = JSON.parse(localStorage.getItem("chats")) || {};
-    let messages = chats[chatId] || [];
+    if (!chatPartnerEmail || !currentUser) return;
 
-    // Deduplicate messages by `id` (fallback to composite key)
-    const seen = new Set();
-    const cleaned = [];
-    for (const msg of messages) {
-        const key = msg.id || `${msg.from}__${msg.to}__${msg.time}__${msg.text}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        cleaned.push(msg);
+    box.innerHTML = "<p style='color:#c7c5cd;'>Loading messages...</p>";
+
+    try {
+        const response = await fetch(
+            "/api/auth/messages/" + encodeURIComponent(chatPartnerEmail),
+            {
+                headers: {
+                    "Authorization": "Bearer " + localStorage.getItem("authToken")
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            box.innerHTML = `<p>${data.msg || "Unable to load messages."}</p>`;
+            return;
+        }
+
+        const messages = data.messages || [];
+
+        if (messages.length === 0) {
+            box.innerHTML = "<p style='color:#c7c5cd;'>No messages yet. Start the conversation.</p>";
+            return;
+        }
+
+        box.innerHTML = messages.map(msg => `
+            <div style="margin-bottom:10px; text-align:${msg.from === currentUser.email ? 'right' : 'left'};">
+                <div style="display:inline-block; background:${msg.from === currentUser.email ? '#5b34a3' : '#0b0618'}; padding:10px; border-radius:10px; max-width:80%; text-align:left; color:#fff;">
+                    <small style="color:#bbb;">${msg.from === currentUser.email ? 'You' : msg.from}</small><br>
+                    ${msg.text}
+                </div>
+            </div>
+        `).join('');
+
+        box.scrollTop = box.scrollHeight;
+
+    } catch (error) {
+        console.error("Render chat error:", error);
+        box.innerHTML = "<p>Unable to load messages. Please try again.</p>";
     }
+}
 
-    // If duplicates were removed, persist the cleaned array
-    if (cleaned.length !== messages.length) {
-        chats[chatId] = cleaned;
-        localStorage.setItem("chats", JSON.stringify(chats));
-        messages = cleaned;
-    }
 
-    if(messages.length === 0){
-        box.innerHTML = "<p style='color:#c7c5cd;'>No messages yet. Start the conversation.</p>";
+
+async function sendMessage() {
+    let input = document.getElementById("chatInput");
+    let text = input.value.trim();
+
+    if (!text) return;
+    if (!chatPartnerEmail || !currentUser) return;
+
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+        alert("Please log in again.");
         return;
     }
 
-    box.innerHTML = messages.map(msg => `
-        <div style="margin-bottom:10px; text-align:${msg.from === currentUser.email ? 'right' : 'left'};">
-            <div style="display:inline-block; background:${msg.from === currentUser.email ? '#5b34a3' : '#0b0618'}; padding:10px; border-radius:10px; max-width:80%; text-align:left; color:#fff;">
-                <small style="color:#bbb;">${msg.from === currentUser.email ? 'You' : msg.from}</small><br>
-                ${msg.text}
-            </div>
-        </div>
-    `).join('');
-    box.scrollTop = box.scrollHeight;
-}
+    try {
+        const response = await fetch("/api/auth/messages", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({
+                toEmail: chatPartnerEmail,
+                text: text
+            })
+        });
 
-function sendMessage(){
-    let input = document.getElementById("chatInput");
-    let text = input.value.trim();
-    if(!text) return;
-    if(!chatPartnerEmail || !currentUser) return;
+        const data = await response.json();
 
-    let chatId = getChatId(currentUser.email, chatPartnerEmail);
-    let chats = JSON.parse(localStorage.getItem("chats")) || {};
-    chats[chatId] = chats[chatId] || [];
-    
-    const messageData = {
-        from: currentUser.email,
-        to: chatPartnerEmail,
-        text,
-        time: new Date().toISOString()
-    };
+        if (!response.ok) {
+            alert(data.msg || "Unable to send message.");
+            return;
+        }
 
-    
-    chats[chatId].push(messageData);
-    localStorage.setItem("chats", JSON.stringify(chats));
-    
-    // Send message via Socket.io for real-time notification
-    if(socket) {
-        socket.emit('send_message', messageData);
+        const messageData = {
+            id: data.message.id,
+            from: currentUser.email,
+            to: chatPartnerEmail,
+            text: data.message.text,
+            time: data.message.time || new Date().toISOString()
+        };
+
+        // Send the saved message through Socket.IO
+        if (socket) {
+            socket.emit("send_message", messageData);
+        }
+
+        input.value = "";
+
+        // Refresh the chat from the database
+        await renderChat();
+
+    } catch (error) {
+        console.error("Send message error:", error);
+        alert("Unable to send message. Please try again.");
     }
-    
-    input.value = "";
-    renderChat();
 }
+
 
 // ---------------- COINS SYSTEM ----------------
 let sessionInterval;
 let seconds = 0;
+
+
+async function loadCoins() {
+    if (!authToken) return;
+
+    try {
+        const response = await fetch('/api/auth/coins', {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error(data.msg || 'Unable to load coins.');
+            return;
+        }
+
+        // Update current user's coin balance
+        currentUser.coins = Number(data.coins);
+
+        localStorage.setItem(
+            'currentUser',
+            JSON.stringify(currentUser)
+        );
+
+        // Update coin display
+        const coinDisplay = document.getElementById('coinDisplay');
+
+        if (coinDisplay) {
+            coinDisplay.innerText = 'Coins: ' + currentUser.coins;
+        }
+
+    } catch (error) {
+        console.error('Load coins error:', error);
+    }
+}
 
 function startSession(){
     if(sessionInterval){
@@ -1232,99 +1579,177 @@ function stopAudioSession(){
 // ========== SESSION REQUEST SYSTEM ==========
 let sessionRequests = {};  // Store incoming requests: { userEmail: [{ from, skill, sessionType, timestamp }] }
 
-function showSessionRequestPopup(sessionType){
+async function showSessionRequestPopup(sessionType) {
+
     // Load incoming requests first
     loadIncomingRequests();
-    
-    if(!currentUser || !currentUser.email){
+
+    if (!currentUser || !currentUser.email) {
         alert("Please log in first");
         return;
     }
 
-    if(!currentUser.skills || currentUser.skills.length === 0){
-        alert("Please add your teaching skills first");
-        return;
-    }
+    try {
+        // Get users from MySQL through API
+        const token = localStorage.getItem("authToken");
 
-    // Get all users and find who wants to learn from current user
-    let users = JSON.parse(localStorage.getItem("users")) || [];
-    let currentUserData = users.find(u => u.email === currentUser.email);
-
-    if(!currentUserData || !currentUserData.skills || currentUserData.skills.length === 0){
-        alert("❌ Please add skills you can teach first");
-        return;
-    }
-
-    let availableUsers = [];
-
-    // Find users who want to learn any of current user's skills
-    users.forEach(otherUser => {
-        if(otherUser.email === currentUser.email) return;
-        
-        const userSkills = (currentUserData.skills || []).map(s => String(s).toLowerCase());
-        const otherLearn = (otherUser.learn || []).map(s => String(s).toLowerCase());
-
-        // Check if there's any skill overlap
-        userSkills.forEach(skill => {
-            if(otherLearn.includes(skill)){
-                if(!availableUsers.find(u => u.email === otherUser.email)){
-                    availableUsers.push(otherUser);
-                }
+        const response = await fetch("/api/auth/users", {
+            headers: {
+                Authorization: `Bearer ${token}`
             }
         });
-    });
 
-    // If no available users, show alert and don't open popup
-    if(availableUsers.length === 0){
-        alert("❌ No users available to learn your skills right now.\n\nTry again later when other users join!");
-        return;
-    }
+        if (!response.ok) {
+            alert("Unable to load users. Please log in again.");
+            return;
+        }
 
-    // Open popup only if users are available
-    const popup = document.getElementById("sessionRequestPopup");
-    const overlay = document.getElementById("popupOverlay");
-    const container = document.getElementById("requestContainer");
+        const data = await response.json();
+        const users = data.users || [];
 
-    let html = `<div style="margin-bottom:20px;">`;
-    html += `<p style="margin-bottom:15px;"><b>📚 Select a user to teach:</b></p>`;
-    
-    availableUsers.forEach(user => {
-        const userLearnSkills = (user.learn || []).map(s => s.toUpperCase()).join(", ");
+        // Find current user from MySQL users
+        const currentUserData = users.find(
+            u => u.email === currentUser.email
+        );
+
+        // Get teaching skills
+        const mySkills = (
+            currentUserData?.skills ||
+            currentUser.skills ||
+            []
+        );
+
+        if (mySkills.length === 0) {
+            alert("Please add your teaching skills first.");
+            return;
+        }
+
+        let availableUsers = [];
+
+        // Find users who want to learn your skills
+        users.forEach(otherUser => {
+
+            if (otherUser.email === currentUser.email) return;
+
+            const userSkills = mySkills.map(
+                s => String(s).trim().toLowerCase()
+            );
+
+            const otherLearn = (otherUser.learn || []).map(
+                s => String(s).trim().toLowerCase()
+            );
+
+            const hasMatch = userSkills.some(
+                skill => otherLearn.includes(skill)
+            );
+
+            if (hasMatch) {
+                availableUsers.push(otherUser);
+            }
+        });
+
+        if (availableUsers.length === 0) {
+            alert(
+                "No users available to learn your skills right now.\n\n" +
+                "Please check whether another user's learning interests match your teaching skills."
+            );
+            return;
+        }
+
+        // Open popup
+        const popup = document.getElementById("sessionRequestPopup");
+        const overlay = document.getElementById("popupOverlay");
+        const container = document.getElementById("requestContainer");
+
+        let html = `<div style="margin-bottom:20px;">`;
+
         html += `
-            <div style="background:#2a2a3e; border:1px solid #7c3aed; border-radius:8px; padding:12px; margin:10px 0; display:flex; justify-content:space-between; align-items:center;">
-                <div style="flex:1;">
-                    <p style="margin:0; color:#fff; font-weight:bold;">${user.email}</p>
-                    <p style="margin:5px 0 0 0; font-size:12px; color:#b0b0cc;">Wants: ${userLearnSkills}</p>
-                </div>
-                <button onclick="sendSessionRequest('${user.email}', '${sessionType}')" style="background:#7c3aed; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">Start</button>
-            </div>
+            <p style="margin-bottom:15px;">
+                <b>📚 Select a user to teach:</b>
+            </p>
         `;
-    });
 
-    // Show your skills for reference
-    html += `<hr style="border:1px solid #444; margin:20px 0;">`;
-    html += `<p style="font-size:12px; color:#888;"><b>Your Teaching Skills:</b></p>`;
-    html += `<p style="color:#4ade80; margin-top:5px;">${formatSkillList(currentUserData.skills)}</p>`;
+        availableUsers.forEach(user => {
 
-    container.innerHTML = html;
-    popup.style.display = "block";
-    overlay.style.display = "block";
+            const userLearnSkills = (user.learn || [])
+                .map(s => String(s).toUpperCase())
+                .join(", ");
+
+            html += `
+                <div style="background:#2a2a3e; border:1px solid #7c3aed;
+                border-radius:8px; padding:12px; margin:10px 0;
+                display:flex; justify-content:space-between;
+                align-items:center;">
+
+                    <div style="flex:1;">
+                        <p style="margin:0; color:#fff; font-weight:bold;">
+                            ${user.email}
+                        </p>
+
+                        <p style="margin:5px 0 0 0; font-size:12px;
+                        color:#b0b0cc;">
+                            Wants: ${userLearnSkills}
+                        </p>
+                    </div>
+
+                    <button
+                        onclick="sendSessionRequest('${user.email}', '${sessionType}')"
+                        style="background:#7c3aed; color:white;
+                        border:none; padding:8px 15px;
+                        border-radius:5px; cursor:pointer;
+                        font-weight:bold;">
+
+                        Start
+                    </button>
+
+                </div>
+            `;
+        });
+
+        html += `
+            <hr style="border:1px solid #444; margin:20px 0;">
+
+            <p style="font-size:12px; color:#888;">
+                <b>Your Teaching Skills:</b>
+            </p>
+
+            <p style="color:#4ade80; margin-top:5px;">
+                ${formatSkillList(mySkills)}
+            </p>
+        `;
+
+        container.innerHTML = html;
+        popup.style.display = "block";
+        overlay.style.display = "block";
+
+    } catch (error) {
+        console.error("Session popup error:", error);
+        alert("Something went wrong while loading session users.");
+    }
 }
+
 
 function closeSessionPopup(){
     document.getElementById("sessionRequestPopup").style.display = "none";
     document.getElementById("popupOverlay").style.display = "none";
 }
 
-function sendSessionRequest(toUserEmail, sessionType){
-    if(!currentUser || !currentUser.email){
+async function sendSessionRequest(toUserEmail, sessionType){
+    console.log("TEST: sendSessionRequest called");
+    if (!currentUser || !currentUser.email) {
         alert("User not found");
         return;
     }
-    
+    console.log("Current user:", currentUser);
+console.log("Teaching skills:", currentUser.skills);
     // Send the call request using the new notification system
-    let skill = (currentUser.skills && currentUser.skills.length > 0) ? currentUser.skills[0] : "Teaching";
-    const request = sendCallRequest(toUserEmail, sessionType, skill);
+    let skill = currentUser.skills?.[0];
+
+if (!skill) {
+    alert("No teaching skill found. Please check your profile.");
+    return;
+}
+    const request = await sendCallRequest(toUserEmail, sessionType, skill);
 
     if(request){
         startPollingForRequestResponse(request.id, sessionType);
@@ -1336,36 +1761,73 @@ function sendSessionRequest(toUserEmail, sessionType){
 }
 
 // Poll localStorage for request status changes so requester can auto-start when accepted
-function startPollingForRequestResponse(requestId, sessionType){
+
+function startPollingForRequestResponse(requestId, sessionType) {
+
     const pollKey = "poll_" + requestId;
-    // avoid duplicate polls
-    if(window[pollKey]) return;
 
-    window[pollKey] = setInterval(()=>{
-        let allRequests = JSON.parse(localStorage.getItem("callRequests")) || [];
-        const mine = allRequests.find(r => r.id === requestId && r.requesterEmail === currentUser.email);
+    if (window[pollKey]) return;
 
-        if(mine){
-            if(mine.status === "accepted"){
+    window[pollKey] = setInterval(async () => {
+
+        try {
+            const token = localStorage.getItem("authToken");
+
+            const response = await fetch(
+                `/api/auth/session-requests/${requestId}`,
+                {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error("Request status error:", data);
                 clearInterval(window[pollKey]);
                 window[pollKey] = null;
-                alert(`✅ Your session request was accepted by ${mine.recipientEmail}. Starting ${sessionType} session now.`);
-                // start a shared session record so both sides can monitor end
-                startLocalSession(mine.id, sessionType, mine);
-                showSection('session');
-                if(sessionType === "video"){
+                return;
+            }
+
+            const request = data.request;
+
+            if (request.status === "accepted") {
+
+                clearInterval(window[pollKey]);
+                window[pollKey] = null;
+
+                alert("Your session request was accepted! Starting session...");
+
+                startLocalSession(requestId, sessionType, request);
+
+                showSection("session");
+
+                if (sessionType === "video") {
                     initializeVideo();
                 } else {
                     startAudioSession();
                 }
-            } else if(mine.status === "rejected"){
+
+            } else if (
+                request.status === "rejected" ||
+                request.status === "ended"
+            ) {
+
                 clearInterval(window[pollKey]);
                 window[pollKey] = null;
-                alert(`❌ ${sessionType === 'video' ? 'Video call' : 'Audio call'} request was rejected by ${mine.recipientEmail}.`);
+
+                alert("Your session request was " + request.status + ".");
             }
+
+        } catch (error) {
+            console.error("Polling error:", error);
         }
+
     }, 2000);
 }
+
 
 
 // ---------------- Session tracking (shared) ----------------
@@ -1386,53 +1848,142 @@ function startLocalSession(sessionId, type, requestObj){
     monitorSessionEnd(sessionId);
 }
 
-function monitorSessionEnd(sessionId){
-    const key = 'session_' + sessionId;
-    const pollKey = 'session_poll_' + sessionId;
-    if(window[pollKey]) return;
-    window[pollKey] = setInterval(()=>{
-        const s = JSON.parse(localStorage.getItem(key));
-        if(!s) return;
-        if(s.status === 'ended'){
-            clearInterval(window[pollKey]);
-            window[pollKey] = null;
-            // Stop local media if this client is part of the session
-            if(currentSessionId === sessionId){
-                try{ stopVideoSession(); }catch(e){}
-                try{ stopAudioSession(); }catch(e){}
-                currentSessionId = null;
+
+
+
+function monitorSessionEnd(sessionId) {
+    const pollKey = "session_poll_" + sessionId;
+
+    if (window[pollKey]) return;
+
+    window[pollKey] = setInterval(async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+
+            if (!token) return;
+
+            const response = await fetch(
+                `/api/auth/session-requests/${sessionId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    cache: "no-store"
+                }
+            );
+
+            if (!response.ok) {
+                console.error("Unable to check session status:", response.status);
+                return;
             }
+
+            const data = await response.json();
+            const status = data.request?.status;
+
+            console.log("Session status:", status);
+
+            if (status === "ended" || status === "rejected") {
+                clearInterval(window[pollKey]);
+                window[pollKey] = null;
+
+                if (String(currentSessionId) === String(sessionId)) {
+
+                    // Stop video and audio
+                    try {
+                        stopVideoSession();
+                    } catch (e) {
+                        console.error("Video stop error:", e);
+                    }
+
+                    try {
+                        stopAudioSession();
+                    } catch (e) {
+                        console.error("Audio stop error:", e);
+                    }
+
+                    currentSessionId = null;
+
+                    // Refresh coin balance
+                    if (typeof loadCoins === "function") {
+                        await loadCoins();
+                    }
+
+                    alert(
+                        status === "ended"
+                            ? "The other participant has ended the session."
+                            : "The session request was rejected."
+                    );
+                }
+            }
+
+        } catch (error) {
+            console.error("Session monitoring error:", error);
         }
-    }, 1000);
+
+    }, 2000);
 }
 
-function endCurrentSession(){
-    if(!currentSessionId){
+
+async function endCurrentSession() {
+    if (!currentSessionId) {
         alert('No active session to end.');
         return;
     }
-    const key = 'session_' + currentSessionId;
-    const s = JSON.parse(localStorage.getItem(key)) || {};
-    s.status = 'ended';
-    s.endedAt = Date.now();
-    localStorage.setItem(key, JSON.stringify(s));
 
-    // also update callRequests record if available
-    let allRequests = JSON.parse(localStorage.getItem('callRequests')) || [];
-    allRequests = allRequests.map(r => {
-        if(r.id === currentSessionId){
-            r.status = 'ended';
-            r.responded = true;
+    const sessionId = currentSessionId;
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+        alert("Please log in again.");
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/auth/session-requests/${sessionId}/end`,
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || "Unable to end session.");
+            return;
         }
-        return r;
-    });
-    localStorage.setItem('callRequests', JSON.stringify(allRequests));
 
-    // stop local media
-    try{ stopVideoSession(); }catch(e){}
-    try{ stopAudioSession(); }catch(e){}
-    currentSessionId = null;
+        // Stop local media
+        try {
+            stopVideoSession();
+        } catch (e) {}
+
+        try {
+            stopAudioSession();
+        } catch (e) {}
+
+        // Stop status monitoring
+        const pollKey = "session_poll_" + sessionId;
+
+        if (window[pollKey]) {
+            clearInterval(window[pollKey]);
+            window[pollKey] = null;
+        }
+
+        currentSessionId = null;
+
+        alert("Session ended successfully.");
+        await loadCoins();
+
+    } catch (error) {
+        console.error("End session error:", error);
+        alert("Something went wrong while ending the session.");
+    }
 }
+
 
 function loadIncomingRequests(){
     if(!currentUser || !currentUser.email) return;
@@ -1518,97 +2069,173 @@ function rejectSessionRequest(fromUserEmail, index){
 }
 
 
-function getSuggestions(){
-    let learn = document.getElementById("learn").value.toLowerCase();
+
+async function getSuggestions() {
+    let learn = document.getElementById("learn").value.trim().toLowerCase();
     let box = document.getElementById("suggestions");
 
-    // 🔒 Consent check FIRST
-    if(!document.getElementById("consent").checked){
+    // Consent check FIRST
+    if (!document.getElementById("consent").checked) {
         alert("Please accept AI usage");
         return;
     }
 
-    let users = JSON.parse(localStorage.getItem("users")) || [];
-    let suggestions = new Set();
+    const token = localStorage.getItem("authToken");
 
-    // 🤖 Collect suggestions
-    users.forEach(u=>{
-        (u.skills || []).forEach(skill=>{
-            if(skill.toLowerCase().includes(learn)){
-                suggestions.add(skill);
+    if (!token) {
+        box.innerHTML = "Please log in again.";
+        return;
+    }
+
+    box.innerHTML = "Finding suggestions...";
+
+    try {
+        // Fetch users and their offered skills from MySQL
+        const response = await fetch('/api/auth/users', {
+            headers: {
+                Authorization: `Bearer ${token}`
             }
         });
-    });
 
-    // ⚖️ Bias prevention (LIMIT results)
-    let result = [...suggestions].slice(0,5);
+        const data = await response.json();
 
-    // 📊 Display suggestions
-    if(result.length === 0){
-        box.innerHTML = "AI could not find suggestions 🤖";
-    } else {
-        box.innerHTML = "<b>AI Suggestions:</b><br>" + result.join(", ");
-    }
+        if (!response.ok) {
+            box.innerHTML = data.msg || "Unable to find suggestions.";
+            return;
+        }
 
-    // 🔍 Explain AI decision (VERY IMPORTANT)
-    let explain = document.getElementById("aiExplain");
-    if(explain){
-        explain.innerText =
-        "Suggestions are based on other users' skills. No personal data is used.";
+        const users = data.users || [];
+        let suggestions = new Set();
+
+        // Collect matching skills
+        users.forEach(u => {
+            (u.skills || []).forEach(skill => {
+                if (
+                    skill.toLowerCase().includes(learn) &&
+                    learn !== ""
+                ) {
+                    suggestions.add(skill);
+                }
+            });
+        });
+
+        // Limit results to 5
+        let result = [...suggestions].slice(0, 5);
+
+        // Display suggestions
+        if (result.length === 0) {
+            box.innerHTML = "AI could not find suggestions 🤖";
+        } else {
+            box.innerHTML =
+                "<b>AI Suggestions:</b><br>" + result.join(", ");
+        }
+
+        // Explain AI decision
+        let explain = document.getElementById("aiExplain");
+
+        if (explain) {
+            explain.innerText =
+                "Suggestions are based on other users' offered skills. No personal data is used.";
+        }
+
+    } catch (error) {
+        console.error("Get suggestions error:", error);
+        box.innerHTML = "Unable to find suggestions. Please try again.";
     }
 }
+
 
 function getFilterValue(id){
     return (document.getElementById(id)?.value || "").trim().toLowerCase();
 }
 
-function loadUsers(){
-    let list = document.getElementById("userList");
-    let users = JSON.parse(localStorage.getItem("users")) || [];
 
-    const filterState = getFilterValue("filterState");
-    const filterCity = getFilterValue("filterCity");
-    const filterOffer = getFilterValue("filterOffer");
-    const filterWant = getFilterValue("filterWant");
-    const filterDegree = getFilterValue("filterDegree");
+async function loadUsers() {
+    const list = document.getElementById("userList");
 
-    const filteredUsers = users.filter(u => {
-        if(filterState && !(u.state || "").toLowerCase().includes(filterState)) return false;
-        if(filterCity && !(u.city || "").toLowerCase().includes(filterCity)) return false;
-        if(filterDegree && !(u.degree || "").toLowerCase().includes(filterDegree)) return false;
+    if (!list) return;
 
-        if(filterOffer){
-            const offers = (u.skills || []).map(s => String(s || "").toLowerCase());
-            if(!offers.some(skill => skill.includes(filterOffer))) return false;
-        }
+    const token = localStorage.getItem("authToken");
 
-        if(filterWant){
-            const wants = (u.learn || []).map(s => String(s || "").toLowerCase());
-            if(!wants.some(skill => skill.includes(filterWant))) return false;
-        }
-
-        return true;
-    });
-
-    list.innerHTML = "";
-
-    if(filteredUsers.length === 0){
-        list.innerHTML = "No users found ❌";
+    if (!token) {
+        list.innerHTML = "Please log in again.";
         return;
     }
 
-    filteredUsers.forEach(u=>{
-        list.innerHTML += `
-            <div style="border:1px solid #ccc; padding:10px; margin:5px; background:#110a27; border-radius:12px;">
-                <b style="font-size:15px;">${u.email}</b><br>
-                <small><b>City:</b> ${u.city || '-'} | <b>State:</b> ${u.state || '-'}</small><br>
-                <small><b>Degree:</b> ${u.degree || '-'}</b></small><br>
-                <div style="margin-top:8px;"><b>Offers:</b> ${formatSkillList(u.skills)}</div>
-                <div><b>Wants:</b> ${formatSkillList(u.learn)}</div>
-            </div>
-        `;
-    });
+    list.innerHTML = "Loading users...";
+
+    try {
+        // Fetch users from MySQL
+        const response = await fetch('/api/auth/users', {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            list.innerHTML = data.msg || "Unable to load users.";
+            return;
+        }
+
+        const users = data.users || [];
+
+        const filterState = getFilterValue("filterState");
+        const filterCity = getFilterValue("filterCity");
+        const filterOffer = getFilterValue("filterOffer");
+        const filterWant = getFilterValue("filterWant");
+        const filterDegree = getFilterValue("filterDegree");
+
+        const filteredUsers = users.filter(u => {
+            if (filterState && !(u.state || "").toLowerCase().includes(filterState)) return false;
+            if (filterCity && !(u.city || "").toLowerCase().includes(filterCity)) return false;
+            if (filterDegree && !(u.degree || "").toLowerCase().includes(filterDegree)) return false;
+
+            if (filterOffer) {
+                const offers = (u.skills || []).map(s =>
+                    String(s || "").toLowerCase()
+                );
+
+                if (!offers.some(skill => skill.includes(filterOffer))) return false;
+            }
+
+            if (filterWant) {
+                const wants = (u.learn || []).map(s =>
+                    String(s || "").toLowerCase()
+                );
+
+                if (!wants.some(skill => skill.includes(filterWant))) return false;
+            }
+
+            return true;
+        });
+
+        list.innerHTML = "";
+
+        if (filteredUsers.length === 0) {
+            list.innerHTML = "No users found ❌";
+            return;
+        }
+
+        filteredUsers.forEach(u => {
+            list.innerHTML += `
+                <div style="border:1px solid #ccc; padding:10px; margin:5px; background:#110a27; border-radius:12px;">
+                    <b style="font-size:15px;">${u.email}</b><br>
+                    <small><b>City:</b> ${u.city || '-'} | <b>State:</b> ${u.state || '-'}</small><br>
+                    <small><b>Degree:</b> ${u.degree || '-'}</small><br>
+                    <div style="margin-top:8px;"><b>Offers:</b> ${formatSkillList(u.skills)}</div>
+                    <div><b>Wants:</b> ${formatSkillList(u.learn)}</div>
+                </div>
+            `;
+        });
+
+    } catch (error) {
+        console.error("Load users error:", error);
+        list.innerHTML = "Unable to load users. Please try again.";
+    }
 }
+
 
 function clearUserFilters(){
     ['filterState','filterCity','filterOffer','filterWant','filterDegree'].forEach(id => {
@@ -1677,6 +2304,48 @@ function displayMySkills(){
         </span>`
     ).join("");
 }
+
+async function loadMySkills() {
+    const token = localStorage.getItem("authToken");
+
+    if (!token) {
+        console.error("Login token not found.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/auth/skills", {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error(data.msg || "Unable to load skills.");
+            return;
+        }
+
+        // MySQL is the source of truth.
+        currentUser.skills = data.skills || [];
+        currentUser.learn = data.learn || [];
+
+        // Keep local storage as a temporary display cache.
+        localStorage.setItem(
+            "currentUser",
+            JSON.stringify(currentUser)
+        );
+
+        displayMySkills();
+        displayMyLearn();
+
+    } catch (error) {
+        console.error("Load skills error:", error);
+    }
+}
+
 function displayMyLearn(){
     let box = document.getElementById("myLearn");
 
@@ -1705,6 +2374,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+document.addEventListener("DOMContentLoaded", function () {
+    displayMySkills();
+    displayMyLearn();
+});
+
     // Initialize navbar badge for unread messages
     if(window.location.pathname.includes("dashboard.html")) {
         setTimeout(() => {
@@ -1726,6 +2400,13 @@ window.onload = function(){
         localStorage.setItem("currentUser", JSON.stringify(currentUser));
     }
 
+    // Load skills and learning interests from MySQL
+    if (currentUser) {
+        loadMySkills();
+        loadUnreadCounts();
+    }
+
+    loadCoins();
     if(currentUser && document.getElementById("coinDisplay")){
         document.getElementById("coinDisplay").innerText =
             "Coins: " + (currentUser.coins || 0);
@@ -1815,7 +2496,8 @@ function showSection(id){
         }
     });
 }
-function saveProfile(){
+
+async function saveProfile() {
     let name = document.getElementById("name").value.trim();
     let contact = document.getElementById("contact").value.trim();
     let country = document.getElementById("country").value;
@@ -1823,38 +2505,75 @@ function saveProfile(){
     let degree = document.getElementById("degree").value.trim();
     let city = document.getElementById("city").value.trim();
 
-    if(!validateContact()){
+    if (!validateContact()) {
         document.getElementById("contact").focus();
         return;
     }
 
-    let users = JSON.parse(localStorage.getItem("users")) || [];
+    if (!name) {
+        alert("Please enter your full name.");
+        document.getElementById("name").focus();
+        return;
+    }
 
-    users = users.map(u=>{
-        if(u.email === currentUser.email){
-            u.name = name;
-            u.contact = contact;
-            u.country = country;
-            u.state = state;
-            u.degree = degree.toLowerCase();
-            u.city = city;
+    // Get the token created during login.
+    const token = localStorage.getItem("authToken");
 
-            currentUser = u;
+    if (!token) {
+        alert("Your login session was not found. Please log in again.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/auth/update", {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({
+                name,
+                contact,
+                country,
+                state,
+                degree,
+                city
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || "Unable to save profile.");
+            return;
         }
-        return u;
-    });
 
-    localStorage.setItem("users", JSON.stringify(users));
-    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+        // Update the current user with the database response.
+        currentUser = {
+            ...currentUser,
+            ...data.user
+        };
 
-    refreshCurrentUser();   // ⭐ IMPORTANT
+        localStorage.setItem(
+            "currentUser",
+            JSON.stringify(currentUser)
+        );
 
-    alert("Profile Saved ✅");
-    displayProfile();       // ⭐ SHOW IMMEDIATELY
-    updateNavButtons();
-    populateProfileForm();
-    showSection('skills');
+        // Refresh the profile using your existing functions.
+        displayProfile();
+        updateNavButtons();
+        populateProfileForm();
+
+        alert("Profile saved successfully!");
+
+        showSection("skills");
+
+    } catch (error) {
+        console.error("Profile save error:", error);
+        alert("Could not connect to the server. Please try again.");
+    }
 }
+
 
 function populateProfileForm(){
     if(!currentUser) return;
@@ -1888,30 +2607,53 @@ function formatSkillList(skills){
     return (skills || []).map(s => String(s || "").toLowerCase()).join(", ");
 }
 
-function viewProfile(email){
-    let users = JSON.parse(localStorage.getItem("users")) || [];
-    let user = users.find(u => u.email === email);
 
+async function viewProfile(email) {
     let box = document.getElementById("profileViewer");
 
-    if(!user){
-        box.innerHTML = "<p>User not found.</p>";
-        return;
+    box.innerHTML = "Loading profile...";
+
+    try {
+        const response = await fetch("/api/auth/users", {
+            headers: {
+                "Authorization": "Bearer " + localStorage.getItem("authToken")
+            }
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            box.innerHTML = data.msg || "Unable to load profile.";
+            return;
+        }
+
+        let users = data.users || [];
+        let user = users.find(u => u.email === email);
+
+        if (!user) {
+            box.innerHTML = "<p>User not found.</p>";
+            return;
+        }
+
+        box.innerHTML = `
+            <div style="border:2px solid #333; padding:10px;">
+                <h3>${user.email}</h3>
+                <p><b>Name:</b> ${user.name || "-"}</p>
+                <p><b>Contact:</b> ${user.contact || "Hidden"}</p>
+                <p><b>Country:</b> ${user.country || "-"}</p>
+                <p><b>Degree:</b> ${user.degree || "-"}</p>
+
+                <p><b>Skills:</b> ${formatSkillList(user.skills)}</p>
+                <p><b>Wants:</b> ${formatSkillList(user.learn)}</p>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error("View profile error:", error);
+        box.innerHTML = "<p>Unable to load profile. Please try again.</p>";
     }
-
-    box.innerHTML = `
-        <div style="border:2px solid #333; padding:10px;">
-            <h3>${user.email}</h3>
-            <p><b>Name:</b> ${user.name || "-"}</p>
-            <p><b>Contact:</b> ${user.contact || "Hidden"}</p>
-            <p><b>Country:</b> ${user.country || "-"}</p>
-            <p><b>Degree:</b> ${user.degree || "-"}</p>
-
-            <p><b>Skills:</b> ${formatSkillList(user.skills)}</p>
-            <p><b>Wants:</b> ${formatSkillList(user.learn)}</p>
-        </div>
-    `;
 }
+
 
 // ================= INCOMING CALL/AUDIO REQUEST SYSTEM =================
 
@@ -1921,24 +2663,63 @@ let incomingRequestPopupVisible = false;
 let currentRequestData = null;
 
 // Check for incoming requests periodically
-function checkIncomingRequests(){
-    if(!currentUser || incomingRequestPopupVisible) return;
-    
-    let allRequests = JSON.parse(localStorage.getItem("callRequests")) || [];
-    
-    // Filter requests for current user that haven't been responded to yet
-    let pendingRequests = allRequests.filter(req => 
-        req.recipientEmail === currentUser.email && 
-        !req.responded &&
-        (Date.now() - req.timestamp) < 30000 // Only show requests less than 30 seconds old
-    );
-    
-    if(pendingRequests.length > 0){
-        let request = pendingRequests[0]; // Show the first pending request
-        currentRequestData = request;
-        showIncomingRequestPopup(request);
+
+async function checkIncomingRequests() {
+    if (!currentUser || !currentUser.email || incomingRequestPopupVisible) {
+        return;
+    }
+
+    const token = localStorage.getItem("authToken");
+
+    if (!token) return;
+
+    try {
+        const response = await fetch(
+            "/api/auth/session-requests/incoming",
+            {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error("Incoming requests error:", data.msg);
+            return;
+        }
+
+        const requests = data.requests || [];
+
+        // Find the first pending request
+        const request = requests.find(
+            req => req.status === "pending"
+        );
+
+        if (!request) return;
+
+        // Convert MySQL response into the format
+        // expected by your existing popup.
+        currentRequestData = {
+            id: String(request.id),
+            requesterEmail: request.requesterEmail,
+            requesterName: request.requesterName,
+            recipientEmail: request.recipientEmail,
+            type: request.type || request.session_type,
+            skill: request.skill || "General Teaching",
+            timestamp: request.timestamp || request.created_at
+                ? new Date(request.timestamp || request.created_at).getTime()
+                : Date.now()
+        };
+
+        showIncomingRequestPopup(currentRequestData);
+
+    } catch (error) {
+        console.error("Check incoming requests error:", error);
     }
 }
+
 
 // Show incoming request popup
 function showIncomingRequestPopup(request){
@@ -2031,38 +2812,56 @@ function playNotificationSound(){
 }
 
 // Accept call request
-function acceptCallRequest(){
-    if(!currentRequestData) return;
+
+async function acceptCallRequest() {
+    if (!currentRequestData) return;
+
     const request = currentRequestData;
+    const token = localStorage.getItem("authToken");
 
-    // Mark request as responded
-    let allRequests = JSON.parse(localStorage.getItem("callRequests")) || [];
-    allRequests = allRequests.map(req => {
-        if(req.id === request.id){
-            req.responded = true;
-            req.status = 'accepted';
+    try {
+        const response = await fetch(
+            `/api/auth/session-requests/${request.id}/respond`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    action: "accepted"
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || "Unable to accept this session request.");
+            return;
         }
-        return req;
-    });
-    localStorage.setItem("callRequests", JSON.stringify(allRequests));
 
-    hideIncomingRequestPopup();
+        hideIncomingRequestPopup();
 
-    // Show success message
-    alert(`✅ Call accepted from ${request.requesterName || request.requesterEmail}!\n\nStarting ${request.type} session...`);
+        alert(
+            `Call accepted from ${request.requesterName || request.requesterEmail}!\n\nStarting ${request.type} session...`
+        );
 
-    // Navigate to session section
-    // create a shared session record and monitor for end
-    startLocalSession(request.id, request.type, request);
-    showSection('session');
+        startLocalSession(request.id, request.type, request);
+        showSection("session");
 
-    // Start the session (video or audio)
-    if(request.type === 'video'){
-        initializeVideo();
-    } else {
-        startAudioSession();
+        if (request.type === "video") {
+            initializeVideo();
+        } else {
+            startAudioSession();
+        }
+
+    } catch (error) {
+        console.error("Accept request error:", error);
+        alert("Error accepting session request.");
     }
 }
+
 
 // Reject call request
 function rejectCallRequest(){
@@ -2087,29 +2886,50 @@ function rejectCallRequest(){
 }
 
 // Send call request to another user
-function sendCallRequest(recipientEmail, type, skill){
-    if(!currentUser || !recipientEmail) return null;
-    
-    let allRequests = JSON.parse(localStorage.getItem("callRequests")) || [];
-    
-    let request = {
-        id: Date.now() + Math.random().toString(36).substr(2, 9),
-        requesterEmail: currentUser.email,
-        requesterName: currentUser.name || currentUser.email,
-        recipientEmail: recipientEmail,
-        type: type, // 'video' or 'audio'
-        skill: skill || '',
-        timestamp: Date.now(),
-        responded: false,
-        status: 'pending'
-    };
-    
-    allRequests.push(request);
-    localStorage.setItem("callRequests", JSON.stringify(allRequests));
-    
-    console.log(`Call request sent to ${recipientEmail} for ${type} session`);
-    return request;
+
+
+async function sendCallRequest(recipientEmail, type, skill) {
+    if (!currentUser || !recipientEmail) {
+        return null;
+    }
+
+    try {
+        const token = localStorage.getItem("authToken");
+
+        if (!token) {
+    alert("Please log in again.");
+    return null;
 }
+        const response = await fetch("/api/auth/session-requests", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                recipientEmail: recipientEmail,
+                type: type,
+                skill: skill || ""
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.msg || "Unable to send session request.");
+            return null;
+        }
+
+        return data.request;
+
+    } catch (error) {
+        console.error("Send session request error:", error);
+        alert("Unable to connect to the server.");
+        return null;
+    }
+}
+
+
 
 // Initialize request checking when dashboard loads
 function initializeRequestNotifications(){
@@ -2127,3 +2947,4 @@ if(document.readyState === 'loading'){
 } else {
     initializeRequestNotifications();
 }
+

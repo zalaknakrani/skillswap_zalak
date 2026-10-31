@@ -1,0 +1,81 @@
+
+<section id="chat" class="section">
+
+    <div class="section-heading">
+
+        <p class="section-kicker">
+            TALK AND COLLABORATE
+        </p>
+
+        <h2>Messages</h2>
+
+        <p class="muted">
+            Choose a matched user to start a conversation.
+        </p>
+
+    </div>
+
+    <div class="panel">
+
+        <button
+            type="button"
+            onclick="loadChatMatches()">
+
+            Load Matched Users
+
+        </button>
+
+        <h3>Matched Chat Users</h3>
+
+        <div
+            id="chatPartnerList"
+            class="partner-list">
+
+        </div>
+
+    </div>
+
+    <!-- CHAT AREA -->
+    <div
+        id="chatArea"
+        class="panel chat-area"
+        style="display:none;">
+
+        <h3 id="chatTitle">
+            Chat
+        </h3>
+
+        <div
+            id="chatBox"
+            class="chat-box"
+            aria-live="polite">
+
+        </div>
+
+        <label for="chatInput">
+            Your message
+        </label>
+
+        <textarea
+            id="chatInput"
+            placeholder="Type your message..."
+            rows="3">
+
+        </textarea>
+
+        <div class="chat-actions">
+
+            <button
+                type="button"
+                class="primary-button"
+                onclick="sendMessage()">
+
+                Send Message
+
+            </button>
+
+        </div>
+
+    </div>
+
+</section>

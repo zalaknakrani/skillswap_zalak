@@ -1,0 +1,120 @@
+
+<section id="users" class="section">
+
+    <div class="section-heading">
+
+        <p class="section-kicker">
+            LEARN TOGETHER
+        </p>
+
+        <h2>Community Users</h2>
+
+        <p class="muted">
+            Find users based on their skills and location.
+        </p>
+
+    </div>
+
+    <!-- USER FILTERS -->
+    <div
+        id="userFilterPanel"
+        class="filter-grid">
+
+        <div>
+
+            <label for="filterState">
+                State
+            </label>
+
+            <input
+                id="filterState"
+                placeholder="Filter by state">
+
+        </div>
+
+        <div>
+
+            <label for="filterCity">
+                City
+            </label>
+
+            <input
+                id="filterCity"
+                placeholder="Filter by city">
+
+        </div>
+
+        <div>
+
+            <label for="filterOffer">
+                Skill Offer
+            </label>
+
+            <input
+                id="filterOffer"
+                placeholder="Filter by skill offered">
+
+        </div>
+
+        <div>
+
+            <label for="filterWant">
+                Skill Wants
+            </label>
+
+            <input
+                id="filterWant"
+                placeholder="Filter by skill wanted">
+
+        </div>
+
+        <div>
+
+            <label for="filterDegree">
+                Degree
+            </label>
+
+            <input
+                id="filterDegree"
+                placeholder="Filter by degree">
+
+        </div>
+
+    </div>
+
+    <!-- FILTER BUTTONS -->
+    <div class="button-row">
+
+        <button
+            type="button"
+            onclick="loadUsers()">
+
+            Show Users
+
+        </button>
+
+        <button
+            type="button"
+            class="secondary-button"
+            onclick="clearUserFilters()">
+
+            Clear Filters
+
+        </button>
+
+    </div>
+
+    <!-- USER LIST -->
+    <div class="panel">
+
+        <h3>All Users</h3>
+
+        <div
+            id="userList"
+            class="results-area">
+
+        </div>
+
+    </div>
+
+</section>

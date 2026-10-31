@@ -1,0 +1,165 @@
+
+<!-- SESSION REQUEST OVERLAY -->
+<div
+    id="popupOverlay"
+    class="modal-overlay"
+    onclick="closeSessionPopup()"
+    style="display:none;">
+
+</div>
+
+<!-- SESSION REQUEST POPUP -->
+<div
+    id="sessionRequestPopup"
+    class="modal-panel session-request-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="sessionRequestTitle"
+    style="display:none;">
+
+    <div class="modal-heading">
+
+        <h3 id="sessionRequestTitle">
+            Start Teaching Session 🎓
+        </h3>
+
+        <button
+            type="button"
+            class="modal-close"
+            onclick="closeSessionPopup()"
+            aria-label="Close">
+
+            ✕
+
+        </button>
+
+    </div>
+
+    <div
+        id="requestContainer"
+        class="modal-content">
+
+        <!-- Skills and matching users loaded by app.js -->
+
+    </div>
+
+</div>
+
+
+<!-- INCOMING REQUEST OVERLAY -->
+<div
+    id="incomingRequestOverlay"
+    class="modal-overlay incoming-overlay"
+    onclick="rejectCallRequest()"
+    style="display:none;">
+
+</div>
+
+<!-- INCOMING CALL POPUP -->
+<div
+    id="incomingRequestPopup"
+    class="modal-panel incoming-request-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="requestSound"
+    style="display:none;">
+
+    <div class="incoming-content">
+
+        <div
+            class="incoming-icon"
+            aria-hidden="true">
+
+            📞
+
+        </div>
+
+        <h2 id="requestSound">
+            Incoming Call Request
+        </h2>
+
+        <p
+            id="requesterName"
+            class="requester-name">
+
+        </p>
+
+        <!-- REQUEST DETAILS -->
+        <div
+            id="requestDetails"
+            class="request-details">
+
+            <p>
+
+                <strong>Interaction Type:</strong>
+
+                <span id="requestType">
+                    Audio
+                </span>
+
+            </p>
+
+            <p>
+
+                <strong>Skill Being Taught:</strong>
+
+                <span id="requestSkill">
+                    ---
+                </span>
+
+            </p>
+
+            <p>
+
+                <strong>Time:</strong>
+
+                <span id="requestTime">
+
+                </span>
+
+            </p>
+
+        </div>
+
+        <!-- ACCEPT / REJECT -->
+        <div class="incoming-actions">
+
+            <button
+                type="button"
+                class="accept-button"
+                onclick="acceptCallRequest()">
+
+                ✓ Accept
+
+            </button>
+
+            <button
+                type="button"
+                class="danger-button"
+                onclick="rejectCallRequest()">
+
+                ✕ Reject
+
+            </button>
+
+        </div>
+
+        <!-- AUTO CLOSE TIMER -->
+        <p
+            id="requestWarning"
+            class="request-warning"
+            style="display:none;">
+
+            ⚠️ Auto-closing in
+
+            <span id="autoCloseTimer">
+                30
+            </span>
+
+            seconds...
+
+        </p>
+
+    </div>
+
+</div>

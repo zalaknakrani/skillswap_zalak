@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b1020">
+    <meta name="description" content="Create your free Skill Swap account and start exchanging skills.">
+    <title>Create Account | Skill Swap</title>
+    <link rel="stylesheet" href="/css/auth.css">
+    <script src="/js/auth.js" defer></script>
+</head>
+<body>
+    <main class="auth-layout register-layout">
+        <section class="brand-panel">
+            <a class="brand" href="/login">
+                <span class="brand-icon">S</span>
+                <span>skill<span class="brand-accent">swap</span></span>
+            </a>
+
+            <div class="brand-content">
+                <span class="eyebrow"><span class="live-dot"></span> YOUR NEXT CHAPTER</span>
+                <h1>Teach what<br>you know. <span>Learn</span><br>what you don't.</h1>
+                <p>
+                    Your experience has value. Exchange knowledge,
+                    discover new interests, and grow with a community
+                    that learns together.
+                </p>
+
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <span class="feature-check">✓</span>
+                        <span>Share skills you're confident in</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-check">✓</span>
+                        <span>Find people who can teach you</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-check">✓</span>
+                        <span>Build meaningful connections</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="brand-footer">
+                <span>© <%= new Date().getFullYear() %> Skill Swap</span>
+                <span>Built for curious minds.</span>
+            </div>
+        </section>
+
+        <section class="form-panel">
+            <div class="mobile-brand">
+                <span class="brand-icon">S</span>
+                <span>skill<span class="brand-accent">swap</span></span>
+            </div>
+
+            <div class="auth-card">
+                <div class="form-heading">
+                    <span class="eyebrow">GET STARTED — IT'S FREE</span>
+                    <h2>Create your account.</h2>
+                    <p>Start exchanging knowledge, one skill at a time.</p>
+                </div>
+
+                <div class="auth-tabs">
+                    <a class="auth-tab" href="/login">Log in</a>
+                    <a class="auth-tab active" href="/register">Create account</a>
+                </div>
+
+                <form id="registerForm">
+                    <div class="field">
+                        <label for="email">Email address</label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            placeholder="you@example.com"
+                            autocomplete="email"
+                            required>
+                    </div>
+
+                    <div class="field">
+                        <div class="label-row">
+                            <label for="password">Create password</label>
+                            <button class="text-button" type="button"
+                                    data-toggle-password="password">
+                                Show
+                            </button>
+                        </div>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            placeholder="At least 8 characters"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required>
+                        <small class="field-hint">
+                            Use at least 8 characters.
+                        </small>
+                    </div>
+
+                    <div class="field">
+                        <div class="label-row">
+                            <label for="confirmPassword">Confirm password</label>
+                            <button class="text-button" type="button"
+                                    data-toggle-password="confirmPassword">
+                                Show
+                            </button>
+                        </div>
+                        <input
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            placeholder="Enter your password again"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required>
+                    </div>
+
+                    <p class="form-message" id="formMessage"
+                       role="status" aria-live="polite"></p>
+
+                    <button class="primary-button" id="submitButton" type="submit">
+                        <span>Create my account</span>
+                        <span aria-hidden="true">→</span>
+                    </button>
+
+                    <p class="terms-note">
+                        By creating an account, you agree to use Skill Swap
+                        respectfully and responsibly.
+                    </p>
+                </form>
+
+                <div class="form-bottom">
+                    Already have an account?
+                    <a href="/login">Log in</a>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

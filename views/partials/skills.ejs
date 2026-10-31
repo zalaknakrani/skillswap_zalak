@@ -1,0 +1,140 @@
+
+<section id="skills" class="section active">
+
+    <div class="section-heading">
+
+        <p class="section-kicker">
+            SHARE WHAT YOU KNOW
+        </p>
+
+        <h2>My Skills</h2>
+
+        <p class="muted">
+            This app uses AI responsibly.
+            No personal data is shared.
+        </p>
+
+    </div>
+
+    <div class="panel">
+
+        <label for="skill">
+            Skill you offer
+        </label>
+
+        <div class="inline-form">
+
+            <input
+                id="skill"
+                type="text"
+                placeholder="e.g. Web Development">
+
+            <button
+                type="button"
+                onclick="addSkill()">
+
+                Add Skill
+
+            </button>
+
+        </div>
+
+        <label for="learn">
+            Skill you want to learn
+        </label>
+
+        <div class="inline-form">
+
+            <input
+                id="learn"
+                type="text"
+                placeholder="e.g. UI/UX Design">
+
+            <button
+                type="button"
+                onclick="addLearn()">
+
+                Add Learn
+
+            </button>
+
+        </div>
+
+        <button
+            type="button"
+            class="primary-button"
+            onclick="saveSkill()">
+
+            Save Skills
+
+        </button>
+
+    </div>
+
+    <div class="two-column">
+
+        <div class="panel">
+
+            <h3>Your Skills</h3>
+
+            <div
+                id="mySkills"
+                class="tag-list">
+
+            </div>
+
+        </div>
+
+        <div class="panel">
+
+            <h3>Want to Learn</h3>
+
+            <div
+                id="myLearn"
+                class="tag-list">
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="panel">
+
+        <h3>AI Skill Suggestions</h3>
+
+        <label
+            class="checkbox-row"
+            for="consent">
+
+            <input
+                type="checkbox"
+                id="consent">
+
+            I agree to AI-based suggestions
+
+        </label>
+
+        <button
+            type="button"
+            onclick="getSuggestions()">
+
+            Get AI Suggestions 🤖
+
+        </button>
+
+        <div
+            id="suggestions"
+            class="results-area">
+
+        </div>
+
+        <p
+            id="aiExplain"
+            class="muted">
+
+        </p>
+
+    </div>
+
+</section>

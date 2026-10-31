@@ -27,10 +27,36 @@ function setTheme(theme) {
     }
 }
 
+
 function toggleTheme() {
-    const activeTheme = document.documentElement.dataset.theme || getSystemTheme();
-    setTheme(activeTheme === 'dark' ? 'light' : 'dark');
+    document.body.classList.toggle("light-mode");
+
+    const isLight = document.body.classList.contains("light-mode");
+    const button = document.getElementById("themeToggleBtn");
+
+    if (button) {
+        button.textContent = isLight ? "Dark Mode" : "Light Mode";
+    }
+
+    localStorage.setItem("theme", isLight ? "light" : "dark");
 }
+
+document.addEventListener("DOMContentLoaded", function () {
+    const savedTheme = localStorage.getItem("theme");
+    const button = document.getElementById("themeToggleBtn");
+
+    if (savedTheme === "light") {
+        document.body.classList.add("light-mode");
+    }
+
+    if (button) {
+        button.textContent =
+            document.body.classList.contains("light-mode")
+                ? "Dark Mode"
+                : "Light Mode";
+    }
+});
+
 
 function initTheme() {
     const storedTheme = getStoredTheme();

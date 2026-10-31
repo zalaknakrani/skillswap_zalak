@@ -1,0 +1,118 @@
+
+#chat > button {
+    margin-bottom: 18px;
+}
+
+#chat #chatPartnerList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+#chatPartnerList > * {
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: linear-gradient(135deg, rgba(139,92,246,.10), rgba(16,22,41,.9));
+    overflow-wrap: anywhere;
+    transition: border-color .2s, background .2s;
+}
+
+#chatPartnerList > *:hover {
+    border-color: var(--purple);
+    background: rgba(139,92,246,.12);
+}
+
+#chatArea {
+    padding: clamp(14px, 3vw, 22px);
+    border: 1px solid rgba(167,139,250,.18);
+    border-radius: 17px;
+    background: rgba(7,12,25,.42);
+}
+
+#chatTitle {
+    margin-top: 0;
+    color: var(--purple-light);
+    font: 600 18px 'Space Grotesk', sans-serif;
+}
+
+#chatBox {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 200px;
+    max-height: 380px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    padding: 15px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 13px !important;
+    background: #0a1020 !important;
+    scrollbar-color: var(--purple-dark) #0a1020;
+}
+
+#chatBox > * {
+    max-width: min(85%, 540px);
+    padding: 10px 13px;
+    border: 1px solid rgba(167,139,250,.13);
+    border-radius: 12px;
+    background: #171f36;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+#chatInput {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 95px;
+    margin-bottom: 12px;
+    padding: 13px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    background: var(--field) !important;
+    color: var(--text) !important;
+    resize: vertical;
+}
+
+#chatInput:focus {
+    border-color: var(--purple) !important;
+    box-shadow: 0 0 0 3px rgba(139,92,246,.12);
+}
+
+#chatArea > button {
+    min-width: 125px;
+}
+
+@media (max-width: 520px) {
+    #chatBox {
+        padding: 10px !important;
+    }
+
+    #chatBox > * {
+        max-width: 96%;
+    }
+}
+
+
+body.light-mode #chat,
+body.light-mode #chatArea,
+body.light-mode #chatBox,
+body.light-mode #chatPartnerList {
+    background: #ffffff !important;
+    color: #272343 !important;
+    border-color: #ded8f3 !important;
+}
+
+body.light-mode #chatTitle,
+body.light-mode #chatBox p,
+body.light-mode #chatBox span {
+    color: #272343 !important;
+}
+
+body.light-mode #chatInput {
+    background: #ffffff !important;
+    color: #272343 !important;
+}

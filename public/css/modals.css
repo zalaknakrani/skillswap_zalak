@@ -1,0 +1,107 @@
+
+#sessionRequestPopup {
+    box-sizing: border-box;
+    width: min(500px, calc(100vw - 28px)) !important;
+    max-width: calc(100vw - 28px);
+    max-height: min(80vh, 720px);
+    padding: clamp(18px, 4vw, 28px) !important;
+    overflow-y: auto;
+    border: 1px solid rgba(167,139,250,.45) !important;
+    border-radius: 19px !important;
+    background: linear-gradient(145deg, #151d33, #0c1222) !important;
+    color: var(--text);
+    box-shadow: 0 25px 100px rgba(0,0,0,.62);
+    scrollbar-color: var(--purple-dark) #0c1222;
+}
+
+#sessionRequestPopup h2,
+#sessionRequestPopup h3,
+#sessionRequestPopup h4 {
+    margin-top: 0;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+#sessionRequestPopup p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+#sessionRequestPopup label {
+    display: block;
+    margin: 12px 0 7px;
+    color: #e4e0f5;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#sessionRequestPopup input:not([type="checkbox"]):not([type="radio"]),
+#sessionRequestPopup select,
+#sessionRequestPopup textarea {
+    width: 100%;
+    min-height: 44px;
+    margin: 5px 0 12px;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--field);
+    color: var(--text);
+}
+
+#sessionRequestPopup input:focus,
+#sessionRequestPopup select:focus,
+#sessionRequestPopup textarea:focus {
+    border-color: var(--purple);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(139,92,246,.12);
+}
+
+#sessionRequestPopup input[type="checkbox"],
+#sessionRequestPopup input[type="radio"] {
+    accent-color: var(--purple);
+}
+
+#sessionRequestPopup button {
+    margin: 7px 7px 0 0;
+}
+
+#sessionRequestPopup [onclick*="close"],
+#sessionRequestPopup [onclick*="cancel"] {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,.04);
+    color: var(--muted);
+    box-shadow: none;
+}
+
+#sessionRequestPopup [onclick*="close"]:hover,
+#sessionRequestPopup [onclick*="cancel"]:hover {
+    background: rgba(255,255,255,.08);
+    color: white;
+}
+
+@media (max-width: 480px) {
+    #sessionRequestPopup {
+        max-height: 85vh;
+    }
+
+    #sessionRequestPopup button {
+        max-width: 100%;
+    }
+}
+
+
+body.light-mode .modal,
+body.light-mode .popup,
+body.light-mode #sessionRequestPopup {
+    background: #ffffff !important;
+    color: #272343 !important;
+    border-color: #ded8f3 !important;
+}
+
+body.light-mode .modal h2,
+body.light-mode .modal p,
+body.light-mode .popup h2,
+body.light-mode .popup p {
+    color: #272343 !important;
+}

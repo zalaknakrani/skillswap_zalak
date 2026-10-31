@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Skill Swap | Dashboard</title>
+
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/skills.css">
+    <link rel="stylesheet" href="/css/users.css">
+    <link rel="stylesheet" href="/css/matches.css">
+    <link rel="stylesheet" href="/css/chat.css">
+    <link rel="stylesheet" href="/css/session.css">
+    <link rel="stylesheet" href="/css/profile.css">
+    <link rel="stylesheet" href="/css/modals.css">
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <!-- HEADER -->
+    <header class="app-header">
+
+        <div class="app-brand">
+
+            <div class="brand-mark">S</div>
+
+            <div>
+                <p class="eyebrow">Skill Swap</p>
+                <h1 class="page-title">Skill Exchange</h1>
+            </div>
+
+        </div>
+
+        <button
+            id="themeToggleBtn"
+            class="theme-toggle"
+            type="button"
+            onclick="toggleTheme()"
+            aria-pressed="false">
+
+            Toggle Theme
+
+        </button>
+
+    </header>
+
+    <!-- NAVIGATION -->
+    <%- include('partials/dashboard-nav') %>
+
+    <!-- DASHBOARD SECTIONS -->
+    <main class="dashboard-content">
+
+        <%- include('partials/skills') %>
+
+        <%- include('partials/users') %>
+
+        <%- include('partials/matches') %>
+
+        <%- include('partials/chat') %>
+
+        <%- include('partials/session') %>
+
+        <%- include('partials/profile') %>
+
+        <%- include("partials/session-modals") %>
+    </main>
+
+    <!-- LOGOUT -->
+    <div class="logout-row">
+
+        <button
+            class="danger-button"
+            type="button"
+            onclick="logout()">
+
+            Logout
+
+        </button>
+
+    </div>
+
+</div>
+
+<!-- SESSION POPUPS -->
+<%- include('partials/session-modals') %>
+
+<!-- SOCKET.IO -->
+<script src="/socket.io/socket.io.js"></script>
+
+<!-- JAVASCRIPT -->
+<script src="/js/app.js" defer></script>
+<script src="/js/theme.js" defer></script>
+
+</body>
+</html>

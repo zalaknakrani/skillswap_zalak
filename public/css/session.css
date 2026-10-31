@@ -1,0 +1,95 @@
+
+#session > h3 {
+    margin-bottom: 22px;
+}
+
+#session #timerText,
+#session #coinDisplay {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 10px 18px 0;
+    padding: 11px 15px;
+    border: 1px solid rgba(167,139,250,.18);
+    border-radius: 11px;
+    background: rgba(139,92,246,.09);
+    color: #e3d8ff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#session #coinDisplay {
+    border-color: rgba(94,224,176,.18);
+    background: rgba(94,224,176,.07);
+    color: var(--green);
+}
+
+#session #videoContainer {
+    padding: 17px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: rgba(7,12,25,.48);
+}
+
+#session #localVideo {
+    display: block;
+    width: 100% !important;
+    max-width: 520px !important;
+    min-height: 180px;
+    margin: 10px auto !important;
+    border: 1px solid var(--purple) !important;
+    border-radius: 13px !important;
+    background: #05070e !important;
+    object-fit: cover;
+}
+
+#session #videoStatus,
+#session #audioStatus {
+    color: var(--muted) !important;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+#session > button {
+    margin: 6px 8px 8px 0;
+}
+
+#session #audioMeter {
+    display: block;
+    width: min(100%, 400px);
+    height: 60px;
+    margin-top: 12px;
+    border: 1px solid var(--border) !important;
+    border-radius: 11px !important;
+    background: #0a1020 !important;
+}
+
+@media (max-width: 520px) {
+    #session #timerText,
+    #session #coinDisplay {
+        display: flex;
+        width: fit-content;
+        margin-bottom: 10px;
+    }
+
+    #session > button {
+        width: 100%;
+        margin: 5px 0;
+    }
+}
+
+
+body.light-mode #session,
+body.light-mode #videoContainer,
+body.light-mode .session-card {
+    background: #ffffff !important;
+    color: #272343 !important;
+    border-color: #ded8f3 !important;
+}
+
+body.light-mode #timerText,
+body.light-mode #coinDisplay,
+body.light-mode #videoStatus,
+body.light-mode #audioStatus {
+    color: #272343 !important;
+}
